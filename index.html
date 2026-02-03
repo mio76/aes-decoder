@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AES Demcoder</title>
+<link rel="manifest" href="manifest.json">
+<style>
+    :root {
+        --bg-color: #f4f4f4;
+        --text-color: #000;
+        --container-bg: #fff;
+        --button-bg: #0078d7;
+        --button-hover: #005fa3;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --container-bg: #1e1e1e;
+            --button-bg: #3399ff;
+            --button-hover: #267acc;
+        }
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: var(--bg-color);
+        color: var(--text-color);
+    }
+    .container {
+        max-width: 600px;
+        margin: auto;
+        background: var(--container-bg);
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    h2 {
+        text-align: center;
+        font-size: 1.4em;
+    }
+    label {
+        display: block;
+        margin-top: 10px;
+        font-size: 0.95em;
+    }
+    textarea, input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 8px;
+        border: 1px solid #666;
+        box-sizing: border-box;
+        font-size: 1em;
+        background: var(--bg-color);
+        color: var(--text-color);
+    }
+    textarea[readonly] {
+        background: #ddd;
+    }
+    @media (prefers-color-scheme: dark) {
+        textarea[readonly] {
+            background: #2a2a2a;
+        }
+    }
+    button {
+        margin-top: 15px;
+        padding: 12px;
+        width: 100%;
+        border: none;
+        border-radius: 8px;
+        background: var(--button-bg);
+        color: #fff;
+        cursor: pointer;
+        font-size: 1em;
+    }
+    button:hover {
+        background: var(--button-hover);
+    }
+    @media (max-width: 768px) {
+        body {
+            padding: 10px;
+        }
+        .container {
+            padding: 10px;
+        }
+        h2 {
+            font-size: 1.2em;
+        }
+        textarea{
+            font-size: 1.5em;
+        }
+
+         input, button {
+            font-size: 0.95em;
+        }
+    }
+    @media (max-width: 480px) {
+        h2 {
+            font-size: 1.1em;
+        }
+         textarea{
+            font-size: 1.4em;
+        }
+        input, button {
+            font-size: 0.9em;
+        }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h2 style="color: var(--button-bg);">AES Шифрування/Дешифрування</h2>
+    <label>Вхідні дані:</label>
+    <textarea id="txtInput" rows="4"></textarea>
+
+    <label>Ключ:</label>
+    <input type="text" id="txtKey">
+
+    <button onclick="encrypt()">ЗАШИФРУВАТИ</button>
+    <button onclick="decrypt()" style="background: red;">РОЗШИФРУВАТИ</button>
+
+    <label>Результат:</label>
+    <textarea id="txtOutput" rows="4" readonly></textarea>
+</div>
+
+<script>
+async function getKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw", enc.encode(password), {name: "PBKDF2"}, false, ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+        {name: "PBKDF2", salt: salt, iterations: 10000, hash: "SHA-256"},
+        keyMaterial,
+        {name: "AES-CBC", length: 256},
+        false,
+        ["encrypt", "decrypt"]
+    );
+}
+
+async function encrypt() {
+    const plainText = document.getElementById("txtInput").value;
+    const password = document.getElementById("txtKey").value;
+    if (!plainText || !password) {
+        alert("Введіть текст та ключ!");
+        return;
+    }
+    const enc = new TextEncoder();
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(16));
+    const key = await getKey(password, salt);
+    const cipherBuffer = await crypto.subtle.encrypt(
+        {name: "AES-CBC", iv: iv},
+        key,
+        enc.encode(plainText)
+    );
+    const combined = new Uint8Array(salt.length + iv.length + cipherBuffer.byteLength);
+    combined.set(salt, 0);
+    combined.set(iv, salt.length);
+    combined.set(new Uint8Array(cipherBuffer), salt.length + iv.length);
+    const base64 = btoa(String.fromCharCode(...combined));
+    document.getElementById("txtOutput").value = base64;
+}
+
+async function decrypt() {
+    const cipherTextBase64 = document.getElementById("txtInput").value;
+    const password = document.getElementById("txtKey").value;
+    if (!cipherTextBase64 || !password) {
+        alert("Введіть зашифрований текст та ключ!");
+        return;
+    }
+    try {
+        const cipherBytes = Uint8Array.from(atob(cipherTextBase64), c => c.charCodeAt(0));
+        const salt = cipherBytes.slice(0,16);
+        const iv = cipherBytes.slice(16,32);
+        const data = cipherBytes.slice(32);
+        const key = await getKey(password, salt);
+        const decrypted = await crypto.subtle.decrypt(
+            {name: "AES-CBC", iv: iv},
+            key,
+            data
+        );
+        const dec = new TextDecoder();
+        document.getElementById("txtOutput").value = dec.decode(decrypted);
+    } catch {
+        alert("Помилка під час розшифровки. Перевірте ключ та дані");
+    }
+}
+/*Установка как программа*/
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/aes-decoder/sw.js')
+    .then(() => console.log('SW зареєстрований'))
+    .catch(error => console.error('Помилка реєстрації SW:', error));
+}
+</script>
+</body>
+</html>
