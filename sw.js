@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'aes-decoder-cache-v1';
+const CACHE_NAME = 'aes-decoder-cache-v2';
 
 const urlsToCache = [
   '/aes-decoder/',
@@ -22,4 +22,5 @@ self.addEventListener('fetch', event => {
       return response || fetch(event.request);
     })
   );
+
 });
