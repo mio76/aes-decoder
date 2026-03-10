@@ -109,6 +109,10 @@
             font-size: 0.9em;
         }
     }
+    .btn{
+        display: flex;
+        gap: 10px;
+    }
 </style>
 </head>
 <body>
@@ -120,8 +124,10 @@
     <label>Ключ:</label>
     <input type="password" id="txtKey">
 
+<div class="btn">
     <button onclick="encrypt()">ЗАШИФРУВАТИ</button>
     <button onclick="decrypt()" style="background: red;">РОЗШИФРУВАТИ</button>
+</div>
 
     <label>Результат:</label>
     <textarea id="txtOutput" rows="4" readonly></textarea>
@@ -198,5 +204,4 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 </body>
-
 </html>
